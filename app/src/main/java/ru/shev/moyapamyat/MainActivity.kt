@@ -28,6 +28,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun MemoryApp() {
     val sections = listOf(
