@@ -1,6 +1,8 @@
 package ru.shev.moyapamyat
 
+import android.content.SharedPreferences
 import android.os.Bundle
+import org.json.JSONArray
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.clickable
@@ -16,6 +18,7 @@ import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
@@ -31,6 +34,8 @@ class MainActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun MemoryApp() {
+    val context = LocalContext.current
+    val prefs = remember { context.getSharedPreferences("moya_pamyat", android.content.Context.MODE_PRIVATE) }
     val sections = listOf(
         Section("Память", "Важные моменты и записи", Icons.Default.Favorite),
         Section("Задачи", "Планы и напоминания", Icons.Default.CheckCircle),
@@ -40,17 +45,22 @@ private fun MemoryApp() {
         Section("Календарь", "События и даты", Icons.Default.CalendarMonth)
     )
     var selected by remember { mutableStateOf("Главная") }
-    var dark by remember { mutableStateOf(false) }
+    var dark by remember { mutableStateOf(prefs.getBoolean("dark_theme", false)) }
     var showAdd by remember { mutableStateOf(false) }
     var draft by remember { mutableStateOf("") }
 
-    val memories = remember { mutableStateListOf<String>() }
-    val tasks = remember { mutableStateListOf<String>() }
-    val chats = remember { mutableStateListOf<String>() }
-    val finances = remember { mutableStateListOf<String>() }
-    val friends = remember { mutableStateListOf<String>() }
-    val events = remember { mutableStateListOf<String>() }
-    val taskDone = remember { mutableStateMapOf<Int, Boolean>() }
+    val memories = remember { mutableStateListOf<String>().apply { addAll(readEntries(prefs, "memories")) } }
+    val tasks = remember { mutableStateListOf<String>().apply { addAll(readEntries(prefs, "tasks")) } }
+    val chats = remember { mutableStateListOf<String>().apply { addAll(readEntries(prefs, "chats")) } }
+    val finances = remember { mutableStateListOf<String>().apply { addAll(readEntries(prefs, "finances")) } }
+    val friends = remember { mutableStateListOf<String>().apply { addAll(readEntries(prefs, "friends")) } }
+    val events = remember { mutableStateListOf<String>().apply { addAll(readEntries(prefs, "events")) } }
+    val taskDone = remember { mutableStateListOf<Boolean>().apply { addAll(readTaskStates(prefs)) } }
+    LaunchedEffect(tasks.size) {
+        while (taskDone.size < tasks.size) taskDone.add(false)
+        while (taskDone.size > tasks.size) taskDone.removeAt(taskDone.lastIndex)
+        writeTaskStates(prefs, taskDone)
+    }
 
     val data = when (selected) {
         "Память" -> memories
@@ -74,7 +84,10 @@ private fun MemoryApp() {
                         }
                     },
                     actions = {
-                        IconButton(onClick = { dark = !dark }) {
+                        IconButton(onClick = {
+                            dark = !dark
+                            prefs.edit().putBoolean("dark_theme", dark).apply()
+                        }) {
                             Icon(if (dark) Icons.Default.LightMode else Icons.Default.DarkMode, contentDescription = "Сменить тему")
                         }
                     }
@@ -112,7 +125,18 @@ private fun MemoryApp() {
                 if (selected == "Главная") {
                     HomeContent(sections, memories.size, tasks.size, events.size) { selected = it }
                 } else {
-                    SectionContent(selected, data, taskDone)
+                    SectionContent(
+                        selected, data, taskDone,
+                        onTaskStatesChanged = { writeTaskStates(prefs, taskDone) },
+                        onDeleteEntry = { index ->
+                            if (index in data.indices) data.removeAt(index)
+                            writeEntries(prefs, storageKeyFor(selected), data)
+                            if (selected == "Задачи" && index in taskDone.indices) {
+                                taskDone.removeAt(index)
+                                writeTaskStates(prefs, taskDone)
+                            }
+                        }
+                    )
                 }
             }
         }
@@ -139,7 +163,14 @@ private fun MemoryApp() {
                 },
                 confirmButton = {
                     TextButton(onClick = {
-                        if (draft.isNotBlank()) data.add(draft.trim())
+                        if (draft.isNotBlank()) {
+                            data.add(draft.trim())
+                            writeEntries(prefs, storageKeyFor(selected), data)
+                            if (selected == "Задачи") {
+                                taskDone.add(false)
+                                writeTaskStates(prefs, taskDone)
+                            }
+                        }
                         showAdd = false
                     }) { Text("Сохранить") }
                 },
@@ -217,7 +248,9 @@ private fun SummaryValue(label: String, value: Int) {
 private fun SectionContent(
     title: String,
     entries: SnapshotStateList<String>,
-    taskDone: MutableMap<Int, Boolean>
+    taskDone: SnapshotStateList<Boolean>,
+    onTaskStatesChanged: () -> Unit,
+    onDeleteEntry: (Int) -> Unit
 ) {
     Spacer(Modifier.height(14.dp))
     Text(title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
@@ -253,13 +286,16 @@ private fun SectionContent(
                     ) {
                         if (title == "Задачи") {
                             Checkbox(
-                                checked = taskDone[index] == true,
-                                onCheckedChange = { taskDone[index] = it }
+                                checked = taskDone.getOrNull(index) == true,
+                                onCheckedChange = {
+                                    if (index in taskDone.indices) taskDone[index] = it
+                                    onTaskStatesChanged()
+                                }
                             )
                             Spacer(Modifier.width(8.dp))
                         }
                         Text(entry, modifier = Modifier.weight(1f))
-                        IconButton(onClick = { entries.removeAt(index); taskDone.remove(index) }) {
+                        IconButton(onClick = { onDeleteEntry(index) }) {
                             Icon(Icons.Default.DeleteOutline, contentDescription = "Удалить")
                         }
                     }
@@ -267,4 +303,39 @@ private fun SectionContent(
             }
         }
     }
+}
+
+
+private fun storageKeyFor(section: String): String = when (section) {
+    "Память" -> "memories"
+    "Задачи" -> "tasks"
+    "Чаты" -> "chats"
+    "Финансы" -> "finances"
+    "Друзья" -> "friends"
+    "Календарь" -> "events"
+    else -> "memories"
+}
+
+private fun readEntries(prefs: SharedPreferences, key: String): List<String> =
+    runCatching {
+        val json = JSONArray(prefs.getString(key, "[]") ?: "[]")
+        List(json.length()) { index -> json.getString(index) }
+    }.getOrDefault(emptyList())
+
+private fun writeEntries(prefs: SharedPreferences, key: String, entries: List<String>) {
+    val json = JSONArray()
+    entries.forEach { json.put(it) }
+    prefs.edit().putString(key, json.toString()).apply()
+}
+
+private fun readTaskStates(prefs: SharedPreferences): List<Boolean> =
+    runCatching {
+        val json = JSONArray(prefs.getString("task_done", "[]") ?: "[]")
+        List(json.length()) { index -> json.optBoolean(index, false) }
+    }.getOrDefault(emptyList())
+
+private fun writeTaskStates(prefs: SharedPreferences, states: List<Boolean>) {
+    val json = JSONArray()
+    states.forEach { json.put(it) }
+    prefs.edit().putString("task_done", json.toString()).apply()
 }
