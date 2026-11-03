@@ -49,7 +49,7 @@ private fun MemoryApp() {
     val finances = remember { mutableStateListOf<String>() }
     val friends = remember { mutableStateListOf<String>() }
     val events = remember { mutableStateListOf<String>() }
-    val taskDone = remember { mutableStateStateMapOf<Int, Boolean>() }
+    val taskDone = remember { mutableStateMapOf<Int, Boolean>() }
 
     val data = when (selected) {
         "Память" -> memories
