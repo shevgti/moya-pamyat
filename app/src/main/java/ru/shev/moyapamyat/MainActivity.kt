@@ -1,6 +1,7 @@
 package ru.shev.moyapamyat
 
 import android.os.Bundle
+import android.content.Context
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
@@ -17,6 +18,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.platform.LocalContext
+import org.json.JSONArray
+import org.json.JSONObject
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import java.time.YearMonth
@@ -31,6 +35,8 @@ private val green = Color(0xFF43E879)
 private val orange = Color(0xFFFF9E16)
 private val pink = Color(0xFFFF4385)
 private val muted = Color(0xFFAAB5CE)
+
+private data class MemoryEntry(val section: String, val title: String, val detail: String, val amount: String = "")
 
 private data class EventItem(val day: Int, val title: String, val color: Color, val icon: androidx.compose.ui.graphics.vector.ImageVector, val recurring: Boolean = false)
 
@@ -50,6 +56,28 @@ private fun MainScreen() {
     var addDialog by remember { mutableStateOf(false) }
     var title by remember { mutableStateOf("") }
     var dayInput by remember { mutableStateOf("10") }
+    var detailInput by remember { mutableStateOf("") }
+    var amountInput by remember { mutableStateOf("") }
+    val context = LocalContext.current
+    val entries = remember {
+        mutableStateListOf<MemoryEntry>().apply {
+            val raw = context.getSharedPreferences("moya_pamyat", Context.MODE_PRIVATE).getString("entries", "[]") ?: "[]"
+            runCatching {
+                val array = JSONArray(raw)
+                for (i in 0 until array.length()) {
+                    val item = array.getJSONObject(i)
+                    add(MemoryEntry(item.optString("section"), item.optString("title"), item.optString("detail"), item.optString("amount")))
+                }
+            }
+        }
+    }
+    LaunchedEffect(entries.toList()) {
+        val array = JSONArray()
+        entries.forEach { entry ->
+            array.put(JSONObject().put("section", entry.section).put("title", entry.title).put("detail", entry.detail).put("amount", entry.amount))
+        }
+        context.getSharedPreferences("moya_pamyat", Context.MODE_PRIVATE).edit().putString("entries", array.toString()).apply()
+    }
     val events = remember { mutableStateListOf(
         EventItem(4, "День рождения Марины", purple, Icons.Default.Cake),
         EventItem(12, "Оплатить кредит", orange, Icons.Default.CreditCard, true),
