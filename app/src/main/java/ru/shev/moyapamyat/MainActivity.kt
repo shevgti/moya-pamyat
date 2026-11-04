@@ -3,268 +3,208 @@ package ru.shev.moyapamyat
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import java.time.YearMonth
+import java.time.format.TextStyle
+import java.util.Locale
 
-private data class Section(val title: String, val subtitle: String, val icon: ImageVector)
+private val bg = Color(0xFF101827)
+private val panel = Color(0xFF202B43)
+private val blue = Color(0xFF3197FF)
+private val purple = Color(0xFFB56CFF)
+private val green = Color(0xFF43E879)
+private val orange = Color(0xFFFF9E16)
+private val pink = Color(0xFFFF4385)
+private val muted = Color(0xFFAAB5CE)
+
+private data class EventItem(val day: Int, val title: String, val color: Color, val icon: androidx.compose.ui.graphics.vector.ImageVector, val recurring: Boolean = false)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { MemoryApp() }
+        setContent { MainScreen() }
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun MemoryApp() {
-    val sections = listOf(
-        Section("Память", "Важные моменты и записи", Icons.Default.Favorite),
-        Section("Задачи", "Планы и напоминания", Icons.Default.CheckCircle),
-        Section("Чаты", "Личные разговоры", Icons.Default.Chat),
-        Section("Финансы", "Доходы и расходы", Icons.Default.AccountBalanceWallet),
-        Section("Друзья", "Важные люди", Icons.Default.People),
-        Section("Календарь", "События и даты", Icons.Default.CalendarMonth)
-    )
-    var selected by remember { mutableStateOf("Главная") }
-    var dark by remember { mutableStateOf(false) }
-    var showAdd by remember { mutableStateOf(false) }
-    var draft by remember { mutableStateOf("") }
+private fun MainScreen() {
+    var month by remember { mutableStateOf(YearMonth.of(2026, 11)) }
+    var selectedDay by remember { mutableIntStateOf(4) }
+    var page by remember { mutableStateOf("Главная") }
+    var addDialog by remember { mutableStateOf(false) }
+    var title by remember { mutableStateOf("") }
+    var dayInput by remember { mutableStateOf("10") }
+    val events = remember { mutableStateListOf(
+        EventItem(4, "День рождения Марины", purple, Icons.Default.Cake),
+        EventItem(12, "Оплатить кредит", orange, Icons.Default.CreditCard, true),
+        EventItem(18, "Купить подарок", green, Icons.Default.CardGiftcard),
+        EventItem(29, "Важная дата", pink, Icons.Default.Favorite)
+    ) }
+    val monthEvents = events.filter { it.day <= month.lengthOfMonth() }
+    val monthTitle = month.month.getDisplayName(TextStyle.FULL, Locale("ru")).replaceFirstChar { it.uppercase() } + " " + month.year
 
-    val memories = remember { mutableStateListOf<String>() }
-    val tasks = remember { mutableStateListOf<String>() }
-    val chats = remember { mutableStateListOf<String>() }
-    val finances = remember { mutableStateListOf<String>() }
-    val friends = remember { mutableStateListOf<String>() }
-    val events = remember { mutableStateListOf<String>() }
-    val taskDone = remember { mutableStateMapOf<Int, Boolean>() }
-
-    val data = when (selected) {
-        "Память" -> memories
-        "Задачи" -> tasks
-        "Чаты" -> chats
-        "Финансы" -> finances
-        "Друзья" -> friends
-        "Календарь" -> events
-        else -> memories
-    }
-    val colors = if (dark) darkColorScheme() else lightColorScheme()
-
-    MaterialTheme(colorScheme = colors) {
+    MaterialTheme(colorScheme = darkColorScheme(primary = blue, background = bg, surface = panel, onSurface = Color.White, onBackground = Color.White, onSurfaceVariant = muted)) {
         Scaffold(
+            containerColor = bg,
             topBar = {
                 TopAppBar(
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = bg, titleContentColor = Color.White),
                     title = {
-                        Column {
-                            Text("Моя память", fontWeight = FontWeight.Bold)
-                            Text("Твоё личное пространство", style = MaterialTheme.typography.labelSmall)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(Icons.Default.Psychology, null, tint = blue, modifier = Modifier.size(48.dp))
+                                Icon(Icons.Default.Favorite, null, tint = pink, modifier = Modifier.size(18.dp))
+                            }
+                            Spacer(Modifier.width(10.dp))
+                            Column {
+                                Text("Моя память", fontSize = 25.sp, fontWeight = FontWeight.Bold)
+                                Text("Планируй. Помни. Живи.", color = muted, fontSize = 13.sp)
+                            }
                         }
                     },
-                    actions = {
-                        IconButton(onClick = { dark = !dark }) {
-                            Icon(if (dark) Icons.Default.LightMode else Icons.Default.DarkMode, contentDescription = "Сменить тему")
-                        }
-                    }
+                    actions = { IconButton(onClick = { page = "Настройки" }) { Icon(Icons.Default.Settings, "Настройки") } }
                 )
             },
-            floatingActionButton = {
-                if (selected != "Главная") {
-                    FloatingActionButton(onClick = { draft = ""; showAdd = true }) {
-                        Icon(Icons.Default.Add, contentDescription = "Добавить")
+            bottomBar = {
+                NavigationBar(containerColor = Color(0xFF1A253A)) {
+                    val tabs = listOf("Главная" to Icons.Default.Home, "Статистика" to Icons.Default.BarChart, "Поиск" to Icons.Default.Search, "Профиль" to Icons.Default.Person)
+                    tabs.forEach { tab ->
+                        NavigationBarItem(selected = page == tab.first, onClick = { page = tab.first }, icon = { Icon(tab.second, tab.first) }, label = { Text(tab.first, fontSize = 10.sp) },
+                            colors = NavigationBarItemDefaults.colors(selectedIconColor = blue, selectedTextColor = blue, indicatorColor = Color(0xFF263B5B), unselectedIconColor = muted, unselectedTextColor = muted))
                     }
                 }
             },
-            bottomBar = {
-                NavigationBar {
-                    listOf("Главная", "Задачи", "Чаты").forEach { item ->
-                        NavigationBarItem(
-                            selected = selected == item,
-                            onClick = { selected = item },
-                            icon = {
-                                Icon(when (item) {
-                                    "Задачи" -> Icons.Default.CheckCircle
-                                    "Чаты" -> Icons.Default.Chat
-                                    else -> Icons.Default.Home
-                                }, contentDescription = null)
-                            },
-                            label = { Text(item) }
-                        )
+            floatingActionButton = { if (page != "Главная") FloatingActionButton(onClick = { addDialog = true }, containerColor = blue) { Icon(Icons.Default.Add, "Добавить") } }
+        ) { padding ->
+            if (page == "Главная") {
+                androidx.compose.foundation.lazy.LazyColumn(
+                    modifier = Modifier.fillMaxSize().padding(padding),
+                    contentPadding = PaddingValues(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    item {
+                        Column(Modifier.fillMaxWidth().background(panel, RoundedCornerShape(24.dp)).padding(14.dp)) {
+                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                                IconButton(onClick = { month = month.minusMonths(1); selectedDay = 1 }) { Icon(Icons.Default.ChevronLeft, "Назад") }
+                                Text(monthTitle, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                                IconButton(onClick = { month = month.plusMonths(1); selectedDay = 1 }) { Icon(Icons.Default.ChevronRight, "Вперёд") }
+                            }
+                            Row(Modifier.fillMaxWidth()) {
+                                listOf("Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс").forEach { Text(it, Modifier.weight(1f), color = muted, textAlign = TextAlign.Center, fontWeight = FontWeight.Bold) }
+                            }
+                            HorizontalDivider(color = Color(0xFF34415F), modifier = Modifier.padding(vertical = 8.dp))
+                            val offset = month.atDay(1).dayOfWeek.value - 1
+                            val total = ((offset + month.lengthOfMonth() + 6) / 7) * 7
+                            for (week in 0 until total / 7) {
+                                Row(Modifier.fillMaxWidth()) {
+                                    for (col in 0..6) {
+                                        val day = week * 7 + col - offset + 1
+                                        Box(Modifier.weight(1f).height(47.dp), contentAlignment = Alignment.Center) {
+                                            if (day in 1..month.lengthOfMonth()) {
+                                                val item = monthEvents.firstOrNull { it.day == day }
+                                                if (day == selectedDay) Box(Modifier.size(37.dp).background(blue, CircleShape))
+                                                Column(Modifier.fillMaxSize().clickable { selectedDay = day }, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                                                    Text(day.toString(), color = Color.White, fontWeight = FontWeight.SemiBold)
+                                                    if (item != null) Box(Modifier.padding(top = 2.dp).size(6.dp).background(item.color, CircleShape))
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    item {
+                        Column(Modifier.fillMaxWidth().background(panel, RoundedCornerShape(24.dp)).padding(vertical = 8.dp)) {
+                            Row(Modifier.fillMaxWidth().padding(horizontal = 15.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.CalendarMonth, null)
+                                Spacer(Modifier.width(9.dp))
+                                Text("Ближайшие события", fontSize = 19.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                                Text("Все события ➜", color = blue, fontSize = 12.sp, modifier = Modifier.clickable { page = "События" })
+                            }
+                            val upcoming = monthEvents.sortedBy { it.day }.filter { it.day >= selectedDay }.take(4)
+                            val shown = if (upcoming.isEmpty()) monthEvents.sortedBy { it.day }.take(4) else upcoming
+                            if (shown.isEmpty()) Text("На этот месяц событий пока нет", color = muted, modifier = Modifier.padding(16.dp))
+                            shown.forEach { item ->
+                                Row(Modifier.fillMaxWidth().clickable { selectedDay = item.day }.padding(horizontal = 15.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Box(Modifier.size(42.dp).background(item.color.copy(alpha = .18f), RoundedCornerShape(13.dp)), contentAlignment = Alignment.Center) { Icon(item.icon, null, tint = item.color) }
+                                    Spacer(Modifier.width(12.dp))
+                                    Column(Modifier.weight(1f)) {
+                                        Text(item.day.toString() + " число", color = item.color, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                        Text(item.title, fontSize = 15.sp)
+                                        if (item.recurring) Text("Повторяется каждый месяц", color = muted, fontSize = 10.sp)
+                                    }
+                                    Icon(Icons.Default.ChevronRight, null, tint = muted)
+                                }
+                                HorizontalDivider(color = Color(0xFF34415F), modifier = Modifier.padding(horizontal = 14.dp))
+                            }
+                        }
+                    }
+                    item {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Tile("Задачи", Icons.Default.CheckBox, blue, Modifier.weight(1f)) { page = "Задачи" }
+                            Tile("Фото", Icons.Default.PhotoCamera, green, Modifier.weight(1f)) { page = "Фото" }
+                            Tile("Заметки", Icons.Default.Notes, purple, Modifier.weight(1f)) { page = "Заметки" }
+                            Tile("Избранное", Icons.Default.Star, orange, Modifier.weight(1f)) { page = "Избранное" }
+                        }
                     }
                 }
-            }
-        ) { padding ->
-            Column(
-                Modifier.fillMaxSize().padding(padding).padding(horizontal = 18.dp)
-            ) {
-                if (selected == "Главная") {
-                    HomeContent(sections, memories.size, tasks.size, events.size) { selected = it }
-                } else {
-                    SectionContent(selected, data, taskDone)
+            } else {
+                Column(Modifier.fillMaxSize().padding(padding).padding(20.dp)) {
+                    Text(page, fontSize = 26.sp, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(10.dp))
+                    Text("Раздел приложения «Моя память».", color = muted)
+                    if (page == "События") monthEvents.sortedBy { it.day }.forEach { Text(it.day.toString() + " число — " + it.title, Modifier.padding(vertical = 8.dp)) }
                 }
             }
         }
-
-        if (showAdd) {
-            AlertDialog(
-                onDismissRequest = { showAdd = false },
-                title = { Text(when (selected) {
-                    "Память" -> "Новая запись"
-                    "Задачи" -> "Новая задача"
-                    "Финансы" -> "Новая операция"
-                    "Друзья" -> "Добавить человека"
-                    "Календарь" -> "Новое событие"
-                    else -> "Новое сообщение"
-                }) },
+        if (addDialog) {
+            AlertDialog(onDismissRequest = { addDialog = false }, title = { Text("Новое событие") },
                 text = {
-                    OutlinedTextField(
-                        value = draft,
-                        onValueChange = { draft = it },
-                        label = { Text("Напиши здесь") },
-                        modifier = Modifier.fillMaxWidth(),
-                        minLines = 2
-                    )
+                    Column {
+                        OutlinedTextField(title, { title = it }, label = { Text("Название события") })
+                        Spacer(Modifier.height(8.dp))
+                        OutlinedTextField(dayInput, { dayInput = it.filter(Char::isDigit).take(2) }, label = { Text("Число месяца") })
+                    }
                 },
                 confirmButton = {
                     TextButton(onClick = {
-                        if (draft.isNotBlank()) data.add(draft.trim())
-                        showAdd = false
+                        val d = dayInput.toIntOrNull()
+                        if (title.isNotBlank() && d != null && d in 1..month.lengthOfMonth()) {
+                            events.add(EventItem(d, title.trim(), blue, Icons.Default.Event))
+                            selectedDay = d
+                            title = ""
+                            addDialog = false
+                        }
                     }) { Text("Сохранить") }
                 },
-                dismissButton = {
-                    TextButton(onClick = { showAdd = false }) { Text("Отмена") }
-                }
+                dismissButton = { TextButton(onClick = { addDialog = false }) { Text("Отмена") } }
             )
         }
     }
 }
 
 @Composable
-private fun HomeContent(
-    sections: List<Section>,
-    memoryCount: Int,
-    taskCount: Int,
-    eventCount: Int,
-    open: (String) -> Unit
-) {
-    Spacer(Modifier.height(12.dp))
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(26.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
-    ) {
-        Column(Modifier.padding(22.dp)) {
-            Text("Всё важное — в одном месте", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(6.dp))
-            Text("Сохраняй воспоминания, записывай планы и держи рядом важных людей.")
-            Spacer(Modifier.height(18.dp))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                SummaryValue("Записи", memoryCount)
-                SummaryValue("Задачи", taskCount)
-                SummaryValue("События", eventCount)
-            }
-        }
-    }
-    Spacer(Modifier.height(22.dp))
-    Text("Твои разделы", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-    Spacer(Modifier.height(12.dp))
-    LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(bottom = 20.dp)) {
-        itemsIndexed(sections) { _, section ->
-            Card(
-                modifier = Modifier.fillMaxWidth().clickable { open(section.title) },
-                shape = RoundedCornerShape(20.dp)
-            ) {
-                Row(
-                    Modifier.fillMaxWidth().padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Surface(shape = RoundedCornerShape(14.dp), color = MaterialTheme.colorScheme.secondaryContainer) {
-                        Icon(section.icon, contentDescription = null, modifier = Modifier.padding(12.dp), tint = MaterialTheme.colorScheme.onSecondaryContainer)
-                    }
-                    Spacer(Modifier.width(14.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text(section.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                        Text(section.subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    Icon(Icons.Default.ChevronRight, contentDescription = "Открыть")
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun SummaryValue(label: String, value: Int) {
-    Column {
-        Text(value.toString(), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-        Text(label, style = MaterialTheme.typography.labelMedium)
-    }
-}
-
-@Composable
-private fun SectionContent(
-    title: String,
-    entries: SnapshotStateList<String>,
-    taskDone: MutableMap<Int, Boolean>
-) {
-    Spacer(Modifier.height(14.dp))
-    Text(title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-    Spacer(Modifier.height(6.dp))
-    Text(
-        when (title) {
-            "Память" -> "Сохраняй здесь важные мысли и моменты жизни."
-            "Задачи" -> "Добавляй дела и отмечай выполненные."
-            "Чаты" -> "Личные заметки и важные разговоры."
-            "Финансы" -> "Записывай доходы, расходы и покупки."
-            "Друзья" -> "Храни заметки о близких людях."
-            else -> "Записывай важные даты и события."
-        },
-        color = MaterialTheme.colorScheme.onSurfaceVariant
-    )
-    Spacer(Modifier.height(16.dp))
-    if (entries.isEmpty()) {
-        Box(Modifier.fillMaxWidth().padding(top = 54.dp), contentAlignment = Alignment.Center) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(Icons.Default.Inbox, contentDescription = null, modifier = Modifier.size(42.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                Spacer(Modifier.height(10.dp))
-                Text("Пока здесь пусто", style = MaterialTheme.typography.titleMedium)
-                Text("Нажми «+», чтобы добавить первую запись.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
-    } else {
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(bottom = 90.dp)) {
-            itemsIndexed(entries) { index, entry ->
-                Card(shape = RoundedCornerShape(16.dp)) {
-                    Row(
-                        Modifier.fillMaxWidth().padding(14.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        if (title == "Задачи") {
-                            Checkbox(
-                                checked = taskDone[index] == true,
-                                onCheckedChange = { taskDone[index] = it }
-                            )
-                            Spacer(Modifier.width(8.dp))
-                        }
-                        Text(entry, modifier = Modifier.weight(1f))
-                        IconButton(onClick = { entries.removeAt(index); taskDone.remove(index) }) {
-                            Icon(Icons.Default.DeleteOutline, contentDescription = "Удалить")
-                        }
-                    }
-                }
-            }
-        }
+private fun Tile(label: String, icon: androidx.compose.ui.graphics.vector.ImageVector, tint: Color, modifier: Modifier, action: () -> Unit) {
+    Column(modifier.height(92.dp).background(tint.copy(alpha = .17f), RoundedCornerShape(17.dp)).clickable(onClick = action).padding(4.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+        Icon(icon, null, tint = tint, modifier = Modifier.size(28.dp))
+        Spacer(Modifier.height(5.dp))
+        Text(label, fontSize = 10.sp, fontWeight = FontWeight.Bold, maxLines = 1)
     }
 }
