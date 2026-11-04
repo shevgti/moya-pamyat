@@ -201,11 +201,41 @@ private fun MainScreen() {
                     }
                 }
             } else {
-                Column(Modifier.fillMaxSize().padding(padding).padding(20.dp)) {
+                val sectionEntries = entries.filter { it.section == page }
+                Column(Modifier.fillMaxSize().padding(padding).padding(18.dp)) {
                     Text(page, fontSize = 26.sp, fontWeight = FontWeight.Bold)
-                    Spacer(Modifier.height(10.dp))
-                    Text("Раздел приложения «Моя память».", color = muted)
-                    if (page == "События") monthEvents.sortedBy { it.day }.forEach { Text(it.day.toString() + " число — " + it.title, Modifier.padding(vertical = 8.dp)) }
+                    Spacer(Modifier.height(6.dp))
+                    Text(when (page) {
+                        "Память" -> "Сохраняй важные мысли, идеи и воспоминания."
+                        "Задачи" -> "Записывай дела и отмечай, что важно."
+                        "Чаты" -> "Личные заметки о разговорах и договорённостях."
+                        "Финансы" -> "Учитывай расходы, доходы и финансовые заметки."
+                        "Друзья" -> "Храни важные сведения о близких людях."
+                        "Календарь", "События" -> "Твои события и важные даты."
+                        "Статистика" -> "Обзор сохранённых записей по разделам."
+                        "Поиск" -> "Поиск по сохранённым записям."
+                        "Профиль" -> "Твоё личное пространство."
+                        else -> "Раздел приложения «Моя память»."
+                    }, color = muted)
+                    Spacer(Modifier.height(18.dp))
+                    if (page == "Статистика") {
+                        Text("Всего записей: ${entries.size}", fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                        listOf("Память", "Задачи", "Чаты", "Финансы", "Друзья").forEach { name ->
+                            Text("$name: ${entries.count { it.section == name }}", modifier = Modifier.padding(top = 10.dp), color = muted)
+                        }
+                    } else if (page == "Поиск") {
+                        var query by remember { mutableStateOf("") }
+                        OutlinedTextField(query, { query = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Найти запись") }, singleLine = true)
+                        val results = entries.filter { it.title.contains(query, true) || it.detail.contains(query, true) }
+                        Spacer(Modifier.height(12.dp))
+                        if (results.isEmpty()) Text("Ничего не найдено", color = muted)
+                        results.forEach { EntryCard(it) }
+                    } else if (page == "События" || page == "Календарь") {
+                        monthEvents.sortedBy { it.day }.forEach { Text(it.day.toString() + " число — " + it.title, Modifier.padding(vertical = 8.dp)) }
+                    } else {
+                        if (sectionEntries.isEmpty()) Text("Пока здесь пусто. Нажми +, чтобы добавить первую запись.", color = muted, modifier = Modifier.padding(vertical = 12.dp))
+                        sectionEntries.forEach { EntryCard(it) }
+                    }
                 }
             }
         }
