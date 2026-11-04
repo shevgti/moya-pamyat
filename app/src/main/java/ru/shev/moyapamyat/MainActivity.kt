@@ -187,17 +187,33 @@ private fun MainScreen() {
                     Column {
                         OutlinedTextField(title, { title = it }, label = { Text("Название события") })
                         Spacer(Modifier.height(8.dp))
-                        OutlinedTextField(dayInput, { dayInput = it.filter(Char::isDigit).take(2) }, label = { Text("Число месяца") })
+                        if (page == "Главная" || page == "Календарь" || page == "События") {
+                            OutlinedTextField(dayInput, { dayInput = it.filter(Char::isDigit).take(2) }, label = { Text("Число месяца") })
+                        } else {
+                            OutlinedTextField(detailInput, { detailInput = it }, label = { Text("Описание (необязательно)") }, minLines = 2)
+                            if (page == "Финансы") OutlinedTextField(amountInput, { amountInput = it }, label = { Text("Сумма") }, singleLine = true)
+                        }
                     }
                 },
                 confirmButton = {
                     TextButton(onClick = {
-                        val d = dayInput.toIntOrNull()
-                        if (title.isNotBlank() && d != null && d in 1..month.lengthOfMonth()) {
-                            events.add(EventItem(d, title.trim(), blue, Icons.Default.Event))
-                            selectedDay = d
-                            title = ""
-                            addDialog = false
+                        if (title.isNotBlank()) {
+                            if (page == "Главная" || page == "Календарь" || page == "События") {
+                                val d = dayInput.toIntOrNull()
+                                if (d != null && d in 1..month.lengthOfMonth()) {
+                                    events.add(EventItem(d, title.trim(), blue, Icons.Default.Event))
+                                    selectedDay = d
+                                    title = ""
+                                    addDialog = false
+                                }
+                            } else {
+                                val section = if (page in listOf("Память", "Задачи", "Чаты", "Финансы", "Друзья")) page else "Память"
+                                entries.add(MemoryEntry(section, title.trim(), detailInput.trim(), amountInput.trim()))
+                                title = ""
+                                detailInput = ""
+                                amountInput = ""
+                                addDialog = false
+                            }
                         }
                     }) { Text("Сохранить") }
                 },
@@ -213,5 +229,17 @@ private fun Tile(label: String, icon: androidx.compose.ui.graphics.vector.ImageV
         Icon(icon, null, tint = tint, modifier = Modifier.size(28.dp))
         Spacer(Modifier.height(5.dp))
         Text(label, fontSize = 10.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+    }
+}
+
+@Composable
+private fun EntryCard(entry: MemoryEntry) {
+    Column(
+        Modifier.fillMaxWidth().padding(bottom = 10.dp)
+            .background(panel, RoundedCornerShape(16.dp)).padding(14.dp)
+    ) {
+        Text(entry.title, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+        if (entry.detail.isNotBlank()) Text(entry.detail, color = muted, modifier = Modifier.padding(top = 5.dp))
+        if (entry.amount.isNotBlank()) Text(entry.amount, color = green, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 6.dp))
     }
 }
