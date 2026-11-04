@@ -157,11 +157,18 @@ private fun MainScreen() {
                         }
                     }
                     item {
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Tile("Задачи", Icons.Default.CheckBox, blue, Modifier.weight(1f)) { page = "Задачи" }
-                            Tile("Фото", Icons.Default.PhotoCamera, green, Modifier.weight(1f)) { page = "Фото" }
-                            Tile("Заметки", Icons.Default.Notes, purple, Modifier.weight(1f)) { page = "Заметки" }
-                            Tile("Избранное", Icons.Default.Star, orange, Modifier.weight(1f)) { page = "Избранное" }
+                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Text("Твоё пространство", fontSize = 19.sp, fontWeight = FontWeight.Bold)
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                Tile("Память", Icons.Default.Psychology, purple, Modifier.weight(1f)) { page = "Память" }
+                                Tile("Задачи", Icons.Default.CheckBox, blue, Modifier.weight(1f)) { page = "Задачи" }
+                                Tile("Чаты", Icons.Default.Chat, green, Modifier.weight(1f)) { page = "Чаты" }
+                            }
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                Tile("Финансы", Icons.Default.AccountBalanceWallet, orange, Modifier.weight(1f)) { page = "Финансы" }
+                                Tile("Друзья", Icons.Default.People, pink, Modifier.weight(1f)) { page = "Друзья" }
+                                Tile("Календарь", Icons.Default.CalendarMonth, blue, Modifier.weight(1f)) { page = "Календарь" }
+                            }
                         }
                     }
                 }
