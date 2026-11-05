@@ -8,7 +8,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class CalendarRulesTest {
-    @Test fun november2026StartsOnSundayAndUsesFiveWeeks() {
+    @Test fun november2026StartsOnSundayAndUsesSixWeeks() {
         val month = YearMonth.of(2026, 11)
         assertEquals(6, CalendarRules.firstDayOffset(month))
         assertEquals(42, CalendarRules.cellCount(month))
@@ -24,7 +24,7 @@ class CalendarRulesTest {
         assertFalse(CalendarRules.isValidDay(month, 30))
     }
 
-    @Test fun february2026HasTwentyEightDaysAndFourWeeks() {
+    @Test fun february2026HasTwentyEightDaysAndFiveWeeks() {
         val month = YearMonth.of(2026, 2)
         assertEquals(28, month.lengthOfMonth())
         assertEquals(35, CalendarRules.cellCount(month))
