@@ -137,7 +137,6 @@ private fun MainScreen() {
                                 listOf("Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс").forEach { Text(it, Modifier.weight(1f), color = muted, textAlign = TextAlign.Center, fontWeight = FontWeight.Bold) }
                             }
                             HorizontalDivider(color = Color(0xFF34415F), modifier = Modifier.padding(vertical = 8.dp))
-                            val offset = CalendarRules.firstDayOffset(month)
                             val total = CalendarRules.cellCount(month)
                             for (week in 0 until total / 7) {
                                 Row(Modifier.fillMaxWidth()) {
