@@ -142,7 +142,7 @@ private fun MainScreen() {
                             for (week in 0 until total / 7) {
                                 Row(Modifier.fillMaxWidth()) {
                                     for (col in 0..6) {
-                                        val day = week * 7 + col - offset + 1
+                                        val day = CalendarRules.dayAtCell(month, week * 7 + col)
                                         Box(Modifier.weight(1f).height(47.dp), contentAlignment = Alignment.Center) {
                                             if (day in 1..month.lengthOfMonth()) {
                                                 val item = monthEvents.firstOrNull { it.day == day }
@@ -258,7 +258,7 @@ private fun MainScreen() {
                         if (title.isNotBlank()) {
                             if (page == "Главная" || page == "Календарь" || page == "События") {
                                 val d = dayInput.toIntOrNull()
-                                if (d != null && d in 1..month.lengthOfMonth()) {
+                                if (d != null && CalendarRules.isValidDay(month, d)) {
                                     events.add(EventItem(d, title.trim(), blue, Icons.Default.Event))
                                     selectedDay = d
                                     title = ""
