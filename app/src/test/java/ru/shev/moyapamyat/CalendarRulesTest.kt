@@ -11,9 +11,9 @@ class CalendarRulesTest {
     @Test fun november2026StartsOnSundayAndUsesFiveWeeks() {
         val month = YearMonth.of(2026, 11)
         assertEquals(6, CalendarRules.firstDayOffset(month))
-        assertEquals(35, CalendarRules.cellCount(month))
+        assertEquals(42, CalendarRules.cellCount(month))
         assertEquals(1, CalendarRules.dayAtCell(month, 6))
-        assertEquals(30, CalendarRules.dayAtCell(month, 35 - 1))
+        assertEquals(30, CalendarRules.dayAtCell(month, 35))
     }
 
     @Test fun february2024IncludesLeapDay() {
@@ -34,7 +34,7 @@ class CalendarRulesTest {
     @Test fun cellsOutsideTheMonthAreEmpty() {
         val month = YearMonth.of(2026, 11)
         assertNull(CalendarRules.dayAtCell(month, 0))
-        assertNull(CalendarRules.dayAtCell(month, 34 + 1))
+        assertNull(CalendarRules.dayAtCell(month, 36))
         assertFalse(CalendarRules.isValidDay(month, 0))
         assertFalse(CalendarRules.isValidDay(month, 31))
     }
