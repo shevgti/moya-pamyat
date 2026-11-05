@@ -137,14 +137,14 @@ private fun MainScreen() {
                                 listOf("Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс").forEach { Text(it, Modifier.weight(1f), color = muted, textAlign = TextAlign.Center, fontWeight = FontWeight.Bold) }
                             }
                             HorizontalDivider(color = Color(0xFF34415F), modifier = Modifier.padding(vertical = 8.dp))
-                            val offset = month.atDay(1).dayOfWeek.value - 1
-                            val total = ((offset + month.lengthOfMonth() + 6) / 7) * 7
+                            val offset = CalendarRules.firstDayOffset(month)
+                            val total = CalendarRules.cellCount(month)
                             for (week in 0 until total / 7) {
                                 Row(Modifier.fillMaxWidth()) {
                                     for (col in 0..6) {
                                         val day = CalendarRules.dayAtCell(month, week * 7 + col)
                                         Box(Modifier.weight(1f).height(47.dp), contentAlignment = Alignment.Center) {
-                                            if (day in 1..month.lengthOfMonth()) {
+                                            if (day != null) {
                                                 val item = monthEvents.firstOrNull { it.day == day }
                                                 if (day == selectedDay) Box(Modifier.size(37.dp).background(blue, CircleShape))
                                                 Column(Modifier.fillMaxSize().clickable { selectedDay = day }, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
