@@ -16,6 +16,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.platform.LocalContext
@@ -78,12 +79,33 @@ private fun MainScreen() {
         }
         context.getSharedPreferences("moya_pamyat", Context.MODE_PRIVATE).edit().putString("entries", array.toString()).apply()
     }
-    val events = remember { mutableStateListOf(
-        EventItem(4, "День рождения Марины", purple, Icons.Default.Cake),
-        EventItem(12, "Оплатить кредит", orange, Icons.Default.CreditCard, true),
-        EventItem(18, "Купить подарок", green, Icons.Default.CardGiftcard),
-        EventItem(29, "Важная дата", pink, Icons.Default.Favorite)
-    ) }
+    val events = remember {
+        val preferences = context.getSharedPreferences("moya_pamyat", Context.MODE_PRIVATE)
+        val stored = preferences.getString("calendar_events", null)
+        val restored = EventStorage.decode(stored)
+        mutableStateListOf<EventItem>().apply {
+            if (preferences.contains("calendar_events")) {
+                restored.forEach { event ->
+                    add(EventItem(event.day, event.title, Color(event.colorArgb), Icons.Default.Event, event.recurringMonthly))
+                }
+            } else {
+                addAll(listOf(
+                    EventItem(4, "День рождения Марины", purple, Icons.Default.Cake),
+                    EventItem(12, "Оплатить кредит", orange, Icons.Default.CreditCard, true),
+                    EventItem(18, "Купить подарок", green, Icons.Default.CardGiftcard),
+                    EventItem(29, "Важная дата", pink, Icons.Default.Favorite)
+                ))
+            }
+        }
+    }
+    LaunchedEffect(events.toList()) {
+        val stored = events.map { event ->
+            StoredEvent(event.day, event.title, event.color.toArgb().toInt(), event.recurring)
+        }
+        context.getSharedPreferences("moya_pamyat", Context.MODE_PRIVATE).edit()
+            .putString("calendar_events", EventStorage.encode(stored))
+            .apply()
+    }
     val monthEvents = events.filter { it.day <= month.lengthOfMonth() }
     val monthTitle = month.month.getDisplayName(TextStyle.FULL, Locale("ru")).replaceFirstChar { it.uppercase() } + " " + month.year
 
